@@ -42,6 +42,8 @@ func initialModel() model {
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.Styles.Title = TitleStyle
+	l.Styles.PaginationStyle = PaginationStyle
+	l.Styles.HelpStyle = HelpStyle
 	// write file data to list
 	file, err := os.Open("./data.txt")
 	if err != nil {

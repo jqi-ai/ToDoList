@@ -14,6 +14,8 @@ const ListHeight = 14
 const DefaultWidth = 28
 
 var (
+	HelpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
+	PaginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
 	TitleStyle        = lipgloss.NewStyle().MarginLeft(2)
 	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
 	markedItemStyle   = lipgloss.NewStyle().PaddingLeft(4).Foreground(lipgloss.Color("#00ff33"))
