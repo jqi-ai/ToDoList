@@ -81,6 +81,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyMsg:
 			switch msg.String() {
 			case "ctrl+c", "q":
+				// Save new list to file
+				file, err := os.Create("data.txt")
+				if err != nil {
+					panic(err)
+				}
+				defer file.Close()
+
+				for _, item := range m.list.Items() {
+					listItem := item.(Item)
+					_, err := fmt.Fprintln(file, listItem.Title())
+					if err != nil {
+						panic(err)
+					}
+				}
 				return m, tea.Quit
 
 			case "up", "k":
@@ -128,23 +142,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.listCursor++
 				}
 			case "s":
-				// Save new list to file
-				file, err := os.Create("data.txt")
-				if err != nil {
-					panic(err)
-				}
-				defer file.Close()
-
-				for _, item := range m.list.Items() {
-					listItem := item.(Item)
-					if listItem.status != MarkedStatus {
-						_, err := fmt.Fprintln(file, listItem.Title())
-						if err != nil {
-							panic(err)
-						}
+				savedItems := []list.Item{}
+				for _, listItem := range m.list.Items() {
+					item := listItem.(Item)
+					if item.status != MarkedStatus {
+						savedItems = append(savedItems, item)
 					}
 				}
-				return m, tea.Quit
+				m.list.SetItems(savedItems)
+				m.mode = HomeMode
 			}
 		}
 		m.list, _ = m.list.Update(msg)
