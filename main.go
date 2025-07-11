@@ -153,6 +153,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.list.SetItems(savedItems)
 				m.mode = HomeMode
+			case "e":
+				m.mode = EditMode
+				currentItem := m.list.Items()[m.listCursor].(Item)
+				m.textInput.SetValue(currentItem.title)
 			}
 		}
 		m.list, _ = m.list.Update(msg)
@@ -161,7 +165,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyMsg:
 			switch msg.Type {
 			case tea.KeyCtrlC, tea.KeyEsc:
-				return m, tea.Quit
+				m.mode = HomeMode
 			case tea.KeyEnter:
 				listLength := len(m.list.Items())
 				m.list.InsertItem(listLength, Item{
@@ -177,6 +181,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = msg
 		}
 
+		m.textInput, _ = m.textInput.Update(msg)
+	case EditMode:
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.Type {
+			case tea.KeyCtrlC, tea.KeyEsc:
+				m.mode = CheckMode
+			case tea.KeyEnter:
+				currentItem := m.list.Items()[m.listCursor].(Item)
+				m.list.SetItem(m.listCursor, Item{
+					title:       m.textInput.Value(),
+					description: currentItem.description,
+					status:      currentItem.status,
+				})
+				m.mode = CheckMode
+			}
+		case errMsg:
+			m.err = msg
+		}
 		m.textInput, _ = m.textInput.Update(msg)
 	}
 
@@ -201,7 +224,9 @@ func (m model) View() string {
 	case NewMode:
 		return fmt.Sprintf("What's the plan for today?\n\n%s\n\n%s", m.textInput.View(), "(esc to quit)") + "\n"
 	case CheckMode:
-		return "\n" + m.list.View()
+		return m.list.View() + "\nHelp: e to edit, s to remove marked items, q to quit"
+	case EditMode:
+		return fmt.Sprintf("Edit your plan:\n\n%s\n\n%s", m.textInput.View(), "(esc to quit)") + "\n"
 	}
 	return ""
 }
