@@ -30,10 +30,10 @@ var MarkedStatus = "marked"
 func initialModel() model {
 	// init textInput
 	ti := textinput.New()
-	ti.CharLimit = 256
+	ti.CharLimit = 32
 	ti.Focus()
 	ti.Placeholder = "Xu Shu"
-	ti.Width = 20
+	ti.Width = 32
 
 	// init list
 	items := []list.Item{}
