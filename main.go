@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/lipgloss"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -28,19 +29,19 @@ type model struct {
 var MarkedStatus = "marked"
 
 func initialModel() model {
+
 	// init textInput
 	ti := textinput.New()
-	ti.CharLimit = 32
+	ti.CharLimit = 128
 	ti.Focus()
-	ti.Placeholder = "Xu Shu"
-	ti.Width = 32
+	ti.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#33eeff"))
 
 	// init list
 	items := []list.Item{}
 	l := list.New(items, ItemDelegate{}, DefaultWidth, ListHeight)
 	l.Title = "Existing ToDo items:"
-	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(false)
+	l.SetShowStatusBar(true)
+	l.SetFilteringEnabled(true)
 	l.Styles.Title = TitleStyle
 	l.Styles.PaginationStyle = PaginationStyle
 	l.Styles.HelpStyle = HelpStyle
@@ -224,7 +225,7 @@ func (m model) View() string {
 	case NewMode:
 		return fmt.Sprintf("What's the plan for today?\n\n%s\n\n%s", m.textInput.View(), "(esc to quit)") + "\n"
 	case CheckMode:
-		return m.list.View() + "\nHelp: e to edit, s to remove marked items, q to quit"
+		return m.list.View()
 	case EditMode:
 		return fmt.Sprintf("Edit your plan:\n\n%s\n\n%s", m.textInput.View(), "(esc to quit)") + "\n"
 	}
