@@ -8,8 +8,8 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/lipgloss"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type (
@@ -18,8 +18,8 @@ type (
 
 type model struct {
 	choices    []string        // features of the app
-	cursor     int             // which feature cursor is pointing at
-	list       list.Model      // list of existing toDo items
+	cursor     int             // feature index cursor is pointing at
+	list       list.Model      // list of toDo items
 	listCursor int             // which toDo item is pointed in CheckMode
 	mode       Mode            // default mode is homeMode
 	textInput  textinput.Model // input box when creating new toDo item
@@ -30,22 +30,22 @@ var MarkedStatus = "marked"
 
 func initialModel() model {
 
-	// init textInput
-	ti := textinput.New()
-	ti.CharLimit = 128
-	ti.Focus()
-	ti.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#33eeff"))
+	// Init textInput
+	textInput := textinput.New()
+	textInput.CharLimit = 100
+	textInput.Focus()
+	textInput.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#33eeff"))
 
-	// init list
-	items := []list.Item{}
-	l := list.New(items, ItemDelegate{}, DefaultWidth, ListHeight)
-	l.Title = "Existing ToDo items:"
-	l.SetShowStatusBar(true)
-	l.SetFilteringEnabled(true)
-	l.Styles.Title = TitleStyle
-	l.Styles.PaginationStyle = PaginationStyle
-	l.Styles.HelpStyle = HelpStyle
-	// write file data to list
+	// Init TODO list
+	itemList := []list.Item{}
+	toDoList := list.New(itemList, ItemDelegate{}, DefaultWidth, ListHeight)
+	toDoList.Title = "Existing ToDo items:"
+	toDoList.SetShowStatusBar(true)
+	toDoList.SetFilteringEnabled(true)
+	toDoList.Styles.Title = TitleStyle
+	toDoList.Styles.PaginationStyle = PaginationStyle
+	toDoList.Styles.HelpStyle = HelpStyle
+	// Write file to list
 	file, err := os.Open("./data.txt")
 	if err != nil {
 		panic(err)
@@ -55,9 +55,9 @@ func initialModel() model {
 	scanner := bufio.NewScanner(file)
 	index := 0
 	for scanner.Scan() {
-		l.InsertItem(index, Item{
+		toDoList.InsertItem(index, Item{
 			title:       scanner.Text(),
-			description: "Placeholder",
+			description: "",
 		})
 		index += 1
 	}
@@ -65,10 +65,10 @@ func initialModel() model {
 	return model{
 		choices:    []string{"Create new item", "Check old items"},
 		cursor:     0,
-		list:       l,
+		list:       toDoList,
 		listCursor: 0,
 		mode:       HomeMode,
-		textInput:  ti,
+		textInput:  textInput,
 	}
 }
 
