@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -17,13 +16,12 @@ type (
 )
 
 type model struct {
-	choices    []string        // features of the app
-	cursor     int             // feature index cursor is pointing at
-	list       list.Model      // list of toDo items
-	listCursor int             // which toDo item is pointed in CheckMode
-	mode       Mode            // default mode is homeMode
-	textInput  textinput.Model // input box when creating new toDo item
-	err        error
+	choices   []string // Features of the app
+	cursor    int      // Index the cursor pointed at
+	err       error
+	mode      Mode            // Default mode is homeMode
+	textInput textinput.Model // Input while creating new toDo item
+	toDoList  list.Model      // List of toDo items
 }
 
 var MarkedStatus = "marked"
@@ -37,8 +35,7 @@ func initialModel() model {
 	textInput.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#33eeff"))
 
 	// Init TODO list
-	itemList := []list.Item{}
-	toDoList := list.New(itemList, ItemDelegate{}, DefaultWidth, ListHeight)
+	toDoList := list.New([]list.Item{}, ItemDelegate{}, DefaultWidth, ListHeight)
 	toDoList.Title = "Existing ToDo items:"
 	toDoList.SetShowStatusBar(true)
 	toDoList.SetFilteringEnabled(true)
@@ -63,12 +60,11 @@ func initialModel() model {
 	}
 
 	return model{
-		choices:    []string{"Create new item", "Check old items"},
-		cursor:     0,
-		list:       toDoList,
-		listCursor: 0,
-		mode:       HomeMode,
-		textInput:  textInput,
+		choices:   []string{"Create new item", "Check old items"},
+		cursor:    0,
+		textInput: textInput,
+		toDoList:  toDoList,
+		mode:      HomeMode,
 	}
 }
 
@@ -83,7 +79,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
 			switch msg.String() {
-			case "ctrl+c", "q":
+			case "q":
 				// Save new list to file
 				file, err := os.Create("data.txt")
 				if err != nil {
@@ -91,7 +87,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				defer file.Close()
 
-				for _, item := range m.list.Items() {
+				for _, item := range m.toDoList.Items() {
 					listItem := item.(Item)
 					_, err := fmt.Fprintln(file, listItem.Title())
 					if err != nil {
@@ -100,30 +96,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, tea.Quit
 
-			case "up", "k":
+			case "k":
 				if m.cursor > 0 {
 					m.cursor--
 				}
-			case "down", "j":
+
+			case "j":
 				if m.cursor < len(m.choices)-1 {
 					m.cursor++
 				}
 
-			case "enter", " ":
+			case "enter":
 				choice := m.choices[m.cursor]
+				m.cursor = 0
 				m.mode = ChoiceToModel[choice]
 			}
 		}
 	case CheckMode:
 		switch msg := msg.(type) {
-		case tea.WindowSizeMsg:
-			m.list.SetWidth(msg.Width)
 		case tea.KeyMsg:
 			switch msg.String() {
-			case "q", "ctrl+c":
+			case "q":
+				m.cursor = 0
 				m.mode = HomeMode
 			case "enter":
-				currentItem := m.list.Items()[m.listCursor].(Item)
+				currentItem := m.toDoList.Items()[m.cursor].(Item)
 				currentStatus := currentItem.status
 				if currentStatus == MarkedStatus {
 					currentStatus = ""
@@ -131,36 +128,42 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					currentStatus = MarkedStatus
 				}
 
-				m.list.SetItem(m.listCursor, Item{
+				m.toDoList.SetItem(m.cursor, Item{
 					title:       currentItem.Title(),
 					description: currentItem.Description(),
 					status:      currentStatus,
 				})
-			case "up", "k":
-				if m.listCursor > 0 {
-					m.listCursor--
+
+			case "k":
+				if m.cursor > 0 {
+					m.cursor--
 				}
-			case "down", "j":
-				if m.listCursor < len(m.list.Items())-1 {
-					m.listCursor++
+
+			case "j":
+				if m.cursor < len(m.toDoList.Items())-1 {
+					m.cursor++
 				}
+
 			case "s":
 				savedItems := []list.Item{}
-				for _, listItem := range m.list.Items() {
+				for _, listItem := range m.toDoList.Items() {
 					item := listItem.(Item)
 					if item.status != MarkedStatus {
 						savedItems = append(savedItems, item)
 					}
 				}
-				m.list.SetItems(savedItems)
+				m.toDoList.SetItems(savedItems)
 				m.mode = HomeMode
+				m.cursor = 0
+
 			case "e":
 				m.mode = EditMode
-				currentItem := m.list.Items()[m.listCursor].(Item)
+				currentItem := m.toDoList.Items()[m.cursor].(Item)
 				m.textInput.SetValue(currentItem.title)
 			}
 		}
-		m.list, _ = m.list.Update(msg)
+		// TODO: What does it mean?
+		m.toDoList, _ = m.toDoList.Update(msg)
 	case NewMode:
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
@@ -168,9 +171,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case tea.KeyCtrlC, tea.KeyEsc:
 				m.mode = HomeMode
 			case tea.KeyEnter:
-				listLength := len(m.list.Items())
-				m.list.InsertItem(listLength, Item{
-					description: "Placeholder",
+				listLength := len(m.toDoList.Items())
+				m.toDoList.InsertItem(listLength, Item{
+					description: "",
 					status:      "",
 					title:       m.textInput.Value(),
 				})
@@ -181,7 +184,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case errMsg:
 			m.err = msg
 		}
-
+		// TODO: ??
 		m.textInput, _ = m.textInput.Update(msg)
 	case EditMode:
 		switch msg := msg.(type) {
@@ -190,8 +193,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case tea.KeyCtrlC, tea.KeyEsc:
 				m.mode = CheckMode
 			case tea.KeyEnter:
-				currentItem := m.list.Items()[m.listCursor].(Item)
-				m.list.SetItem(m.listCursor, Item{
+				currentItem := m.toDoList.Items()[m.cursor].(Item)
+				m.toDoList.SetItem(m.cursor, Item{
 					title:       m.textInput.Value(),
 					description: currentItem.description,
 					status:      currentItem.status,
@@ -218,14 +221,14 @@ func (m model) View() string {
 			}
 			s += fmt.Sprintf("%s %s\n", cursor, choice)
 		}
-
-		year, month, day := time.Now().Date()
-		s += fmt.Sprintf("\nPress q to quit. Date: %s-%d-%d\n", month, day, year)
 		return s
+
 	case NewMode:
 		return fmt.Sprintf("What's the plan for today?\n\n%s\n\n%s", m.textInput.View(), "(esc to quit)") + "\n"
+
 	case CheckMode:
-		return m.list.View()
+		return m.toDoList.View()
+
 	case EditMode:
 		return fmt.Sprintf("Edit your plan:\n\n%s\n\n%s", m.textInput.View(), "(esc to quit)") + "\n"
 	}
