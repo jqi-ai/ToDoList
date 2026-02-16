@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -19,6 +20,7 @@ type model struct {
 	choices   []string // Features of the app
 	cursor    int      // Index the cursor pointed at
 	err       error
+	keys      *listKeyMap
 	mode      Mode            // Default mode is homeMode
 	textInput textinput.Model // Input while creating new toDo item
 	toDoList  list.Model      // List of toDo items
@@ -29,28 +31,35 @@ var MarkedStatus = "marked"
 func initialModel() model {
 
 	// Init textInput
-	textInput := textinput.New()
+	var textInput = textinput.New()
 	textInput.CharLimit = 100
 	textInput.Focus()
 	textInput.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#33eeff"))
-
 	// Init TODO list
-	toDoList := list.New([]list.Item{}, ItemDelegate{}, DefaultWidth, ListHeight)
+	var listKeys = newListKeyMap()
+	var toDoList = list.New([]list.Item{}, ItemDelegate{}, DefaultWidth, ListHeight)
 	toDoList.Title = "Existing ToDo items:"
 	toDoList.SetShowStatusBar(true)
-	toDoList.SetFilteringEnabled(true)
+	toDoList.SetFilteringEnabled(false)
 	toDoList.Styles.Title = TitleStyle
 	toDoList.Styles.PaginationStyle = PaginationStyle
 	toDoList.Styles.HelpStyle = HelpStyle
+	toDoList.AdditionalFullHelpKeys = func() []key.Binding {
+		return []key.Binding{
+			listKeys.editItem,
+			listKeys.saveArchives,
+			listKeys.toggleItem,
+		}
+	}
 	// Write file to list
-	file, err := os.Open("./data.txt")
+	var file, err = os.Open("./data.txt")
 	if err != nil {
 		panic(err)
 	}
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	index := 0
+	var scanner = bufio.NewScanner(file)
+	var index = 0
 	for scanner.Scan() {
 		toDoList.InsertItem(index, Item{
 			title:       scanner.Text(),
